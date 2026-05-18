@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+# Isolated AI Engine Instance
+  ollama:
+    image: ollama/ollama:latest
+    container_name: adoptimizer-ai
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  # Backend REST API Processing Tier
+  api:
+    image: ${DOCKERHUB_USERNAME}/adoptimizer-api:latest
+    container_name: adoptimizer-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  # Frontend Next.js Web UI Tier
+  web:
+    image: ${DOCKERHUB_USERNAME}/adoptimizer-web:latest
+    container_name: adoptimizer-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
