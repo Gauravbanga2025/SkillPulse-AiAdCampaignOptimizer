@@ -164,6 +164,7 @@ export default function AudienceExplorer() {
                     top: Math.random() * 100 + '%',
                     left: Math.random() * 100 + '%',
                   }}
+                  suppressHydrationWarning={true} // Add this line here!
                 />
               ))}
             </div>

@@ -219,7 +219,7 @@ export default function NewCampaignWizard() {
                 Regenerate
               </button>
               <Link
-                href="/dashboard"
+                href="/"
                 className="flex items-center gap-2 px-8 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition font-semibold text-sm shadow-lg shadow-emerald-500/20"
               >
                 <Play className="w-4 h-4" />

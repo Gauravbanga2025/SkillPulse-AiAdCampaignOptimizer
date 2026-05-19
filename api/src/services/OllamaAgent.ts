@@ -33,7 +33,7 @@ async function getAvailableModel(): Promise<string> {
     throw new Error('No models available in Ollama');
   } catch (err) {
     console.error('[OllamaAgent] Could not detect model:', err);
-    return 'mistral'; // default fallback
+    return 'qwen2.5:0.5b'; // Fix: Match our lightweight system model download
   }
 }
 

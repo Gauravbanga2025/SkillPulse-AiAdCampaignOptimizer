@@ -1,6 +1,9 @@
 # --- Build Stage ---
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
+# Install standard Linux native compilation tools for C++ bindings
+RUN apk add --no-cache python3 make g++
+
 RUN npm install -g pnpm
 
 # Copy the specific API workspace dependencies manifests
@@ -17,7 +20,7 @@ COPY api/ .
 RUN npx prisma generate
 
 # --- Production Runtime Stage ---
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 RUN npm install -g pnpm
 
