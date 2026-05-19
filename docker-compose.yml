@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-# Isolated AI Engine Instance
+  # 1. Local Isolated AI Orchestration Engine
   ollama:
     image: ollama/ollama:latest
     container_name: adoptimizer-ai
@@ -11,9 +9,11 @@ services:
       - "11434:11434"
     restart: unless-stopped
 
-  # Backend REST API Processing Tier
+  # 2. Express Backend API
   api:
-    image: ${DOCKERHUB_USERNAME}/adoptimizer-api:latest
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     container_name: adoptimizer-backend
     ports:
       - "8080:8080"
@@ -24,12 +24,16 @@ services:
       - ollama
     restart: unless-stopped
 
-  # Frontend Next.js Web UI Tier
+  # 3. Next.js Frontend User Interface
   web:
-    image: ${DOCKERHUB_USERNAME}/adoptimizer-web:latest
+    build:
+      context: .
+      dockerfile: web/Dockerfile
     container_name: adoptimizer-frontend
     ports:
       - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
     depends_on:
       - api
     restart: unless-stopped

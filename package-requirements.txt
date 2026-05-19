@@ -1,0 +1,13 @@
+# SkillPulse-AiAdCampaignOptimizer Core Architectural Dependencies
+# Backend Framework (api/package.json)
+express
+@prisma/client
+typescript
+ts-node
+ollama
+
+# Frontend Interface (web/package.json)
+next
+react
+react-dom
+tailwindcss
