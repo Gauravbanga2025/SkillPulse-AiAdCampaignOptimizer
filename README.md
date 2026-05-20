@@ -58,8 +58,24 @@
 
 ## 🏗️ Project Structure
 
-AdOptimizer/├── web/                    # ⚡ Next.js 16 Frontend (Turbopack)│   ├── src/app/            # App Router pages│   └── next.config.ts      # API proxy routing rewrites → Cluster CoreDNS Endpoint├── api/                    # 🚀 Node.js + Express Backend (Node 22 Alpine)│   ├── src/│   │   ├── controllers/    # API route handlers│   │   ├── services/       # OllamaAgent, CreativeAgent│   │   └── index.ts        # Express server entry│   ├── prisma/             # SQLite schema configurations│   └── Dockerfile          # Advanced multi-stage native C++ compiler build├── infrastructure/         # 🏗️ Production Infrastructure as Code│   ├── main.tf             # Core Terraform manifest (K8s Topologies & Providers)│   ├── services.yaml       # Kubernetes Networking (api & frontend-service meshes)│   └── prisma.config.ts    # Prisma 7 standalone decoupled configuration file├── docs/                   # 📚 Documentation & assets└── README.md
----
+```text
+AdOptimizer/
+├── web/                    # ⚡ Next.js 16 Frontend (Turbopack)
+│   ├── src/app/            # App Router pages
+│   └── next.config.ts      # API proxy routing rewrites → Cluster CoreDNS Endpoint
+├── api/                    # 🚀 Node.js + Express Backend (Node 22 Alpine)
+│   ├── src/
+│   │   ├── controllers/    # API route handlers
+│   │   ├── services/       # OllamaAgent, CreativeAgent
+│   │   └── index.ts        # Express server entry
+│   ├── prisma/             # SQLite schema configurations
+│   └── Dockerfile          # Advanced multi-stage native C++ compiler build
+├── infrastructure/         # 🏗️ Production Infrastructure as Code
+│   ├── main.tf             # Core Terraform manifest (K8s Topologies & Providers)
+│   ├── services.yaml       # Kubernetes Networking (api & frontend-service meshes)
+│   └── prisma.config.ts    # Prisma 7 standalone decoupled configuration file
+├── docs/                   # 📚 Documentation & assets
+└── README.md
 
 ## 🏗️ Beyond the Base: Production-Grade Infrastructure & Engineering
 
