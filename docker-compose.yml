@@ -27,6 +27,8 @@ services:
     depends_on:
       - ollama
     restart: unless-stopped
+    volumes: 
+      - ./api/dev.db:/app/dev.db
 
   # 3. Next.js Frontend User Interface
   web:

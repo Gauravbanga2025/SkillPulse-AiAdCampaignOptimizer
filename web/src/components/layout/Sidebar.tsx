@@ -33,7 +33,7 @@ export function Sidebar() {
             <div className="absolute inset-0 rounded-lg bg-white/20 group-hover:bg-white/30 transition-colors" />
           </div>
           <span className="text-xl font-bold tracking-tight text-white font-heading">
-            AdOptimizer
+           AiAdCampaignOptimizer
           </span>
         </Link>
       </div>

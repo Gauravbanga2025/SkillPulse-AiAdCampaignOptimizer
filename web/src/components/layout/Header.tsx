@@ -24,8 +24,8 @@ export function Header() {
         
         <div className="flex items-center gap-3 pl-4 border-l border-slate-800">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-white">Growth Team</p>
-            <p className="text-xs text-slate-400">Pro Tier</p>
+            <p className="text-sm font-medium text-white">Hello</p>
+            <p className="text-xs text-slate-400">User</p>
           </div>
           <button className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white ring-2 ring-slate-800 hover:ring-indigo-500 transition-all">
             <User className="w-4 h-4" />

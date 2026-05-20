@@ -16,7 +16,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "AdOptimizer | AI-Powered Autonomous Ad Optimization",
+  title: "AiAdCampaignOptimizer | AI-Powered Autonomous Ad Optimization",
   description: "End-to-end AI campaign optimization that replaces manual media buying.",
 };
 
