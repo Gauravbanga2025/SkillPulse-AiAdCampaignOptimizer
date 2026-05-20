@@ -47,7 +47,8 @@ resource "kubernetes_deployment" "backend" {
         container {
           name  = "api"
           image = "gauravbanga/adoptimizer-backend:latest"
-
+          # 🔑 Force the container to run production start instead of the Dockerfile's dev default
+          args = ["npm", "run", "start"]
           port {
             container_port = 8080
           }
