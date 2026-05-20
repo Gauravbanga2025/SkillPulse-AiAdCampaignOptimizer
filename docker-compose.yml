@@ -11,15 +11,12 @@ services:
 
   # 2. Express Backend API
   api:
-    build:
-      context: .
-      dockerfile: api/Dockerfile
+    image: gauravbanga/adoptimizer-backend:latest # 🔑 Updated: Swapped build block for Docker Hub registry path
     container_name: adoptimizer-backend
     ports:
       - "8080:8080"
     environment:
       - NODE_ENV=production
-      # Ensure your codebase reads this exact variable name for Ollama routing
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_URL=http://ollama:11434
       - HOST=0.0.0.0
@@ -27,20 +24,17 @@ services:
     depends_on:
       - ollama
     restart: unless-stopped
-    volumes: 
-      - ./api/dev.db:/app/dev.db
+    volumes:
+      - ./api/dev.db:/app/dev.db # 💾 Kept: Persistent SQLite link to your host machine
 
   # 3. Next.js Frontend User Interface
   web:
-    build:
-      context: .
-      dockerfile: web/Dockerfile
+    image: gauravbanga/adoptimizer-frontend:latest # 🔑 Updated: Swapped build block for Docker Hub registry path
     container_name: adoptimizer-frontend
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://172.105.36.248:8080
-      # This forces Next.js server-side / proxy modules to look at the api container
       - API_URL=http://api:8080
       - BACKEND_URL=http://api:8080
       - HOST=0.0.0.0
