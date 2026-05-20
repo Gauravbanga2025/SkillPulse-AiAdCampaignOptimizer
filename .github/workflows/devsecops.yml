@@ -61,7 +61,7 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/adoptimizer-frontend:latest
 
-  deploy:
+deploy:
     name: 🚀 Automated Secure Production Deploy
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -74,12 +74,16 @@ jobs:
           key: ${{ secrets.LINODE_SSH_PRIVATE_KEY }}
           script: |
             cd /home/devops/SkillPulse-AiAdCampaignOptimizer
-            
-            # Pull down the fresh production images we just pushed to registry
-            docker compose pull
-            
-            # Re-initialize the active container stack seamlessly 
-            docker compose up -d --remove-orphans
-            
-            # Run our SQLite schema compilation check natively inside the new live container
-            docker compose exec -T api npx prisma db push
+
+            # 1. Sync the repository's local tracking state with the remote branch changes
+            git pull origin main
+
+            # 2. Re-initialize the provider configuration flags inside the app directory
+            terraform init
+
+            # 3. Apply the declarative container mappings automatically
+            terraform apply -auto-approve
+
+            # 4. Force a rolling update to download the fresh images without downing the cluster
+            kubectl rollout restart deployment/adoptimizer-frontend
+            kubectl rollout restart deployment/adoptimizer-backend
