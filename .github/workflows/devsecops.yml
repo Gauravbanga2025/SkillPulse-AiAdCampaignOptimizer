@@ -75,15 +75,21 @@ jobs:
           script: |
             cd /home/devops/SkillPulse-AiAdCampaignOptimizer
 
-            # 1. Sync the repository's local tracking state with the remote branch changes
+            # 1. Pull down the latest GitHub modifications
             git pull origin main
 
-            # 2. Re-initialize the provider configuration flags inside the app directory
+            # 2. Re-initialize the plugin cache binaries
             terraform init
 
-            # 3. Apply the declarative container mappings automatically
+            # 3. Dynamic Import Sequence (Forces Terraform to map existing resources into the pipeline state)
+            terraform import kubernetes_deployment.backend default/adoptimizer-backend || true
+            terraform import kubernetes_deployment.frontend default/adoptimizer-frontend || true
+            terraform import kubernetes_deployment.ai_engine default/adoptimizer-ai || true
+            terraform import kubernetes_horizontal_pod_autoscaler.backend_autoscaler default/backend-autoscaler || true
+
+            # 4. Apply the synchronized infrastructure mappings seamlessly
             terraform apply -auto-approve
 
-            # 4. Force a rolling update to download the fresh images without downing the cluster
+            # 5. Execute zero-downtime rolling cluster hot-swaps
             kubectl rollout restart deployment/adoptimizer-frontend
             kubectl rollout restart deployment/adoptimizer-backend
