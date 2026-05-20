@@ -15,13 +15,36 @@ terraform {
 provider "docker" {}
 
 provider "kubernetes" {
-  config_path = "~/.kube/config" # 🔑 Direct link to your active KIND cluster
+  config_path = "~/.kube/config"
 }
 
-# 1. THE BACKEND DEPLOYMENT (Replaces your old YAML entirely)
+# ==========================================
+# 0. PERSISTENT VOLUME CLAIM FOR SQLITE DB
+# ==========================================
+resource "kubernetes_persistent_volume_claim" "sqlite_pvc" {
+  metadata {
+    name      = "sqlite-pvc"
+    namespace = "default"
+  }
+
+  spec {
+    access_modes = ["ReadWriteOnce"]
+
+    resources {
+      requests = {
+        storage = "1Gi"
+      }
+    }
+  }
+}
+
+# ==========================================
+# 1. THE BACKEND DEPLOYMENT
+# ==========================================
 resource "kubernetes_deployment" "backend" {
   metadata {
-    name = "adoptimizer-backend"
+    name      = "adoptimizer-backend"
+    namespace = "default"
     labels = {
       app = "adoptimizer-backend"
     }
@@ -47,21 +70,105 @@ resource "kubernetes_deployment" "backend" {
         container {
           name  = "api"
           image = "gauravbanga/adoptimizer-backend:latest"
-          # 🔑 Force the container to run production start instead of the Dockerfile's dev default
-          args = ["npm", "run", "start"]
+          args  = ["node", "dist/index.js"]
+
           port {
             container_port = 8080
           }
+
+          env {
+            name  = "NODE_ENV"
+            value = "production"
+          }
+          env {
+            name  = "OLLAMA_HOST"
+            value = "http://ollama:11434"
+          }
+          env {
+            name  = "OLLAMA_URL"
+            value = "http://ollama:11434"
+          }
+          env {
+            name  = "HOST"
+            value = "0.0.0.0"
+          }
+          env {
+            name  = "PORT"
+            value = "8080"
+          }
+          env {
+            name  = "DATABASE_URL"
+            value = "file:/app/data/production.db"
+          }
+
+          volume_mount {
+            name       = "db-storage"
+            mount_path = "/app/data"
+          }
+
+          liveness_probe {
+            http_get {
+              path = "/health"
+              port = 8080
+            }
+            initial_delay_seconds = 30
+            period_seconds        = 10
+          }
+
+          resources {
+            requests = {
+              cpu    = "100m"
+              memory = "128Mi"
+            }
+            limits = {
+              cpu    = "300m"
+              memory = "512Mi"
+            }
+          }
+        }
+
+        volume {
+          name = "db-storage"
+          empty_dir {}
         }
       }
     }
   }
+
+  depends_on = [kubernetes_deployment.ai_engine]
 }
 
-# 2. THE HORIZONTAL POD AUTOSCALER (HPA managed via IaC)
+# 🔑 BACKEND SERVICE - CRITICAL FOR POD-TO-POD COMMUNICATION
+resource "kubernetes_service" "backend_service" {
+  metadata {
+    name      = "api"
+    namespace = "default"
+  }
+
+  spec {
+    selector = {
+      app = "adoptimizer-backend"
+    }
+
+    port {
+      protocol    = "TCP"
+      port        = 8080
+      target_port = 8080
+    }
+
+    type = "ClusterIP"
+  }
+
+  depends_on = [kubernetes_deployment.backend]
+}
+
+# ==========================================
+# 2. THE HORIZONTAL POD AUTOSCALER
+# ==========================================
 resource "kubernetes_horizontal_pod_autoscaler" "backend_autoscaler" {
   metadata {
-    name = "backend-autoscaler"
+    name      = "backend-autoscaler"
+    namespace = "default"
   }
 
   spec {
@@ -71,20 +178,24 @@ resource "kubernetes_horizontal_pod_autoscaler" "backend_autoscaler" {
     scale_target_ref {
       api_version = "apps/v1"
       kind        = "Deployment"
-      name        = kubernetes_deployment.backend.metadata[0].name # 🔗 Securely linked to the deployment above
+      name        = kubernetes_deployment.backend.metadata[0].name
     }
 
     target_cpu_utilization_percentage = 70
   }
+
+  depends_on = [kubernetes_deployment.backend]
 }
 
-# 3. THE FRONTEND DEPLOYMENT (Aligned with cluster state)
+# ==========================================
+# 3. THE FRONTEND DEPLOYMENT
+# ==========================================
 resource "kubernetes_deployment" "frontend" {
   metadata {
     name      = "adoptimizer-frontend"
     namespace = "default"
     labels = {
-      app = "frontend" # 🔑 Changed from adoptimizer-frontend
+      app = "adoptimizer-frontend"
     }
   }
 
@@ -93,34 +204,37 @@ resource "kubernetes_deployment" "frontend" {
 
     selector {
       match_labels = {
-        app = "frontend" # 🔑 Changed from adoptimizer-frontend
+        app = "adoptimizer-frontend"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "frontend" # 🔑 Changed from adoptimizer-frontend
+          app = "adoptimizer-frontend"
         }
       }
 
       spec {
         container {
-          name  = "web" # 🔑 Changed from frontend
+          name  = "web"
           image = "gauravbanga/adoptimizer-frontend:latest"
 
           port {
             container_port = 3000
           }
 
-          # 🔑 Re-adding the missing production environment variables
           env {
             name  = "NEXT_PUBLIC_API_URL"
             value = "http://172.105.36.248:8080"
           }
           env {
             name  = "API_URL"
-            value = "http://api:8080" # 🔑 Ensure this points to http://api:8080
+            value = "http://api:8080"
+          }
+          env {
+            name  = "BACKEND_URL"
+            value = "http://api:8080"
           }
           env {
             name  = "HOST"
@@ -130,19 +244,59 @@ resource "kubernetes_deployment" "frontend" {
             name  = "PORT"
             value = "3000"
           }
+
+          resources {
+            requests = {
+              cpu    = "100m"
+              memory = "128Mi"
+            }
+            limits = {
+              cpu    = "300m"
+              memory = "512Mi"
+            }
+          }
         }
       }
     }
   }
+
+  depends_on = [kubernetes_service.backend_service]
 }
 
-# 4. THE AI WORKER ENGINE (Aligned with cluster state)
+# 🔑 FRONTEND SERVICE - FOR EXTERNAL ACCESS
+resource "kubernetes_service" "frontend_service" {
+  metadata {
+    name      = "web-service"
+    namespace = "default"
+  }
+
+  spec {
+    selector = {
+      app = "adoptimizer-frontend"
+    }
+
+    port {
+      protocol    = "TCP"
+      port        = 3000
+      target_port = 3000
+      node_port   = 30000
+    }
+
+    type = "NodePort"
+  }
+
+  depends_on = [kubernetes_deployment.frontend]
+}
+
+# ==========================================
+# 4. THE AI ENGINE (OLLAMA)
+# ==========================================
 resource "kubernetes_deployment" "ai_engine" {
   metadata {
     name      = "adoptimizer-ai"
     namespace = "default"
     labels = {
-      app = "ai" # 🔑 Changed from adoptimizer-ai
+      app = "adoptimizer-ai"
     }
   }
 
@@ -151,27 +305,62 @@ resource "kubernetes_deployment" "ai_engine" {
 
     selector {
       match_labels = {
-        app = "ai" # 🔑 Changed from adoptimizer-ai
+        app = "adoptimizer-ai"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "ai" # 🔑 Changed from adoptimizer-ai
+          app = "adoptimizer-ai"
         }
       }
 
       spec {
         container {
-          name  = "ollama" # 🔑 Changed from ai-model
-          image = "ollama/ollama:latest" # 🔑 Changed from gauravbanga/adoptimizer-ai:latest
+          name  = "ollama"
+          image = "ollama/ollama:latest"
 
           port {
             container_port = 11434
+          }
+
+          resources {
+            requests = {
+              cpu    = "100m"
+              memory = "256Mi"
+            }
+            limits = {
+              cpu    = "500m"
+              memory = "1Gi"
+            }
           }
         }
       }
     }
   }
+}
+
+# 🔑 OLLAMA SERVICE - FOR POD-TO-POD COMMUNICATION
+resource "kubernetes_service" "ollama_service" {
+  metadata {
+    name      = "ollama"
+    namespace = "default"
+  }
+
+  spec {
+    selector = {
+      app = "adoptimizer-ai"
+    }
+
+    port {
+      protocol    = "TCP"
+      port        = 11434
+      target_port = 11434
+    }
+
+    type = "ClusterIP"
+  }
+
+  depends_on = [kubernetes_deployment.ai_engine]
 }

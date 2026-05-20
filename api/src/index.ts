@@ -2,6 +2,7 @@ import express, { Express, Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
+import { prisma } from './db'; // 🔑 ADD THIS LINE
 import { orchestrateCampaign, getJobStatus } from './controllers/orchestrator';
 import {
   getWorkspace,

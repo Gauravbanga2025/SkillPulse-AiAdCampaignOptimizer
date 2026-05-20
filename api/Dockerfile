@@ -1,39 +1,48 @@
 # --- Build Stage ---
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Install standard Linux native compilation tools for C++ bindings
-RUN apk add --no-cache python3 make g++
-RUN npm install -g pnpm
+# Install system dependencies for better-sqlite3
+RUN apk add --no-cache python3 make g++ gcc libc-dev
 
-# Copy the specific API workspace dependencies manifests
+# Copy package files
 COPY api/package.json api/pnpm-lock.yaml* ./
 
-# Install matching client dependencies smoothly
-RUN pnpm install
+# Install deps, then rebuild native/generated packages
+RUN corepack enable && \
+    pnpm install --force --ignore-scripts && \
+    pnpm rebuild @prisma/engines prisma better-sqlite3 esbuild msgpackr-extract protobufjs @google/genai
 
-# Bring in backend source code files
 COPY api/ .
 
-# 🔑 THE CRITICAL FIXES inside Builder Stage:
-# 1. Generate your production schema client engine
-RUN npx prisma generate
+# Generate Prisma client before building
+RUN pnpm exec prisma generate
 
-# 2. Compile TypeScript into the target JavaScript 'dist/' directory
+# Build the application
 RUN pnpm run build
 
 # --- Production Runtime Stage ---
-FROM node:20-alpine AS runner
+FROM node:22-alpine
 WORKDIR /app
-RUN npm install -g pnpm
 
-# Copy built production targets and node_modules directly from the builder stage
-COPY --from=builder /app/package.json ./
+# sqlite + build tools needed to run the native better-sqlite3 binary
+RUN apk add --no-cache sqlite python3 make g++ gcc libc-dev
+
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.js ./prisma.config.js
+# Rebuild better-sqlite3 native binary for this exact runtime environment
+RUN npm rebuild better-sqlite3 --prefix /app
+
+RUN mkdir -p /app/data
 
 EXPOSE 8080
+ENV DATABASE_URL=file:/app/data/production.db
+ENV NODE_ENV=production
+ENV OLLAMA_HOST=http://ollama:11434
+ENV HOST=0.0.0.0
+ENV PORT=8080
 
-# The base container runtime entry point (Terraform will still run args ["npm", "run", "start"])
-CMD ["pnpm", "start"]
+CMD ["sh", "-c", "npx prisma db push && node dist/index.js"]

@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import Database from 'better-sqlite3';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
-const adapter = new PrismaBetterSqlite3({ url: 'file:./dev.db' });
+const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL || 'file:/app/data/production.db' });
 const prisma = new PrismaClient({ adapter });
 const ollamaAgent = new OllamaAgent();
 

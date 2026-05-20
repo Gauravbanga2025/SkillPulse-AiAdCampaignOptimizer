@@ -1,4 +1,24 @@
 # ==========================================
+# app-infrastructure.yaml — FULLY FIXED
+# ==========================================
+
+# ==========================================
+# 0. PERSISTENT VOLUME CLAIM FOR SQLITE DB
+# 🔑 FIX: Added — was missing, causing empty DB on pod start
+# ==========================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sqlite-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# ==========================================
 # 1. OLLAMA AI ENGINE (DEPLOYMENT & SERVICE)
 # ==========================================
 apiVersion: apps/v1
@@ -41,6 +61,7 @@ spec:
     - protocol: TCP
       port: 11434
       targetPort: 11434
+
 ---
 # ==========================================
 # 2. EXPRESS BACKEND API (DEPLOYMENT & SERVICE)
@@ -52,7 +73,7 @@ metadata:
   labels:
     app: backend
 spec:
-  replicas: 2  # 🛡️ High Availability: Split across your KIND worker nodes!
+  replicas: 2
   selector:
     matchLabels:
       app: backend
@@ -64,19 +85,25 @@ spec:
       containers:
       - name: api
         image: gauravbanga/adoptimizer-backend:latest
-        command: ["node", "dist/index.js"] # 🔑 FIX: Bypasses nodemon and runs the compiled JS directly!
+        command: ["node", "dist/index.js"]
         ports:
         - containerPort: 8080
-        env: # 🔑 Fixed: Changed from environment to env
+        env:
         - name: NODE_ENV
           value: "production"
         - name: OLLAMA_HOST
+          value: "http://ollama:11434"
+        - name: OLLAMA_URL
           value: "http://ollama:11434"
         - name: HOST
           value: "0.0.0.0"
         - name: PORT
           value: "8080"
-        # 🔄 AUTOHEALING: Restarts automatically if the backend container freezes
+        # 🔑 FIX: Mount persistent SQLite database
+        volumeMounts:
+        - name: sqlite-storage
+          mountPath: /app/dev.db
+          subPath: dev.db
         livenessProbe:
           httpGet:
             path: /health
@@ -90,6 +117,12 @@ spec:
           limits:
             cpu: "300m"
             memory: "512Mi"
+      # 🔑 FIX: Attach the PVC to the pod
+      volumes:
+      - name: sqlite-storage
+        persistentVolumeClaim:
+          claimName: sqlite-pvc
+
 ---
 apiVersion: v1
 kind: Service
@@ -102,10 +135,11 @@ spec:
     - protocol: TCP
       port: 8080
       targetPort: 8080
+
 ---
 # ==========================================
 # 3. NEXT.JS FRONTEND (DEPLOYMENT & SERVICE)
-# =================────────────────=========
+# ==========================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -113,7 +147,7 @@ metadata:
   labels:
     app: frontend
 spec:
-  replicas: 2  # 🛡️ High Availability: Ensures the UI stays up
+  replicas: 2
   selector:
     matchLabels:
       app: frontend
@@ -127,10 +161,12 @@ spec:
         image: gauravbanga/adoptimizer-frontend:latest
         ports:
         - containerPort: 3000
-        env: # 🔑 Fixed: Changed from environment to env
+        env:
         - name: NEXT_PUBLIC_API_URL
           value: "http://172.105.36.248:8080"
         - name: API_URL
+          value: "http://api:8080"
+        - name: BACKEND_URL
           value: "http://api:8080"
         - name: HOST
           value: "0.0.0.0"
@@ -143,6 +179,7 @@ spec:
           limits:
             cpu: "300m"
             memory: "512Mi"
+
 ---
 apiVersion: v1
 kind: Service
@@ -158,6 +195,10 @@ spec:
   type: NodePort
 
 ---
+# ==========================================
+# 4. HORIZONTAL POD AUTOSCALER
+# 🔑 FIX: maxReplicas was 2 (same as min), making HPA useless
+# ==========================================
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -166,9 +207,9 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: adoptimizer-backend # 🔑 Fixed: Corrected target name mapping to match deployment
+    name: adoptimizer-backend
   minReplicas: 2
-  maxReplicas: 2
+  maxReplicas: 6  # 🔑 FIX: Was 2 — now HPA can actually scale up
   metrics:
   - type: Resource
     resource:
