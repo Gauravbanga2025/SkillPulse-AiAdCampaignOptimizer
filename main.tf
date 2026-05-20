@@ -120,7 +120,7 @@ resource "kubernetes_deployment" "frontend" {
           }
           env {
             name  = "API_URL"
-            value = "http://api:8080"
+            value = "http://adoptimizer-backend:8080"
           }
           env {
             name  = "HOST"
