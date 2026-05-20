@@ -1,0 +1,85 @@
+name: DevSecOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  security-scan:
+    name: 🛡️ Code Quality & Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run SonarQube Scan Pass
+        uses: sonarsource/sonarqube-scan-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=SkillPulse-AiAdCampaignOptimizer
+            -Dsonar.sources=api/src,web/src
+            -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/dist/**
+
+      - name: Enforce SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v2
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  build-and-push:
+    name: 📦 Secure Docker Containerization
+    needs: security-scan # Prevents building if SonarQube flags security issues!
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Express API
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: api/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/adoptimizer-backend:latest
+
+      - name: Build and Push Next.js UI
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: web/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/adoptimizer-frontend:latest
+
+  deploy:
+    name: 🚀 Automated Secure Production Deploy
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Remote SSH Deployment Rules
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: devops
+          key: ${{ secrets.LINODE_SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/devops/SkillPulse-AiAdCampaignOptimizer
+            
+            # Pull down the fresh production images we just pushed to registry
+            docker compose pull
+            
+            # Re-initialize the active container stack seamlessly 
+            docker compose up -d --remove-orphans
+            
+            # Run our SQLite schema compilation check natively inside the new live container
+            docker compose exec -T api npx prisma db push
