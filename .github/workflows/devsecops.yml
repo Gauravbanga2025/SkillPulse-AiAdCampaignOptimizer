@@ -61,7 +61,7 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/adoptimizer-frontend:latest
 
-deploy:
+  deploy:  # 🔑 Added exactly 2 spaces here to align with build-and-push!
     name: 🚀 Automated Secure Production Deploy
     needs: build-and-push
     runs-on: ubuntu-latest
