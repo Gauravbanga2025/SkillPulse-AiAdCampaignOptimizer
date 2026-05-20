@@ -99,15 +99,38 @@ This project goes significantly beyond basic application logic — it features a
 
 ---
 
-## 🚀 **Hackathon Additions & Improvements (Beyond Base Requirements)**
+## 🚀 **Hackathon Additions & Improvements**
 
-To transform this from a localized proof-of-concept into an enterprise-grade cloud application, the following custom advancements were engineered over the base structure:
+1. Core Product Features
+🤖 Local AI Orchestration: Automated ad generation pipeline leveraging a local Ollama integration running the Qwen model—eliminating external API dependencies or token costs.
 
-* **DevSecOps Integration Flow:** Introduced structural package dependency verification audits (`pnpm audit`) and static application vulnerability assertions into a unified delivery chain, eliminating deployment risks before image creation.
-* **Deterministic Architecture Engine:** Swapped basic system wrappers for an isolated native compilation context via `Node 22-Alpine` layers, overcoming strict lockfile automation overrides (`ERR_PNPM_IGNORED_BUILDS`) with modular build-stage flags.
-* **Decoupled Configuration Standard:** Upgraded database model compilation engines to conform with native Prisma 7 guidelines, cleanly stripping connection properties from standard structural layouts into encapsulated environment manifests (`prisma.config.ts`).
-* **Resilient Volume Topology:** Implemented continuous file-persistence boundaries mapping down to transactional file engines (`/app/data/production.db`), protecting local system entities from cluster-wide scaling cycling operations.
-* **High-Availability Clustering:** Assembled a multi-pod distribution matrix featuring dynamic discovery routes and integrated health validation checks to sustain target performance SLAs with zero single-point failure configurations.
+🎯 Multi-Agent Campaign Wizard: A step-by-step generative setup that produces 3 distinct ad creative copies, maps out 3 target audience segments, and initializes matching campaign objectives simultaneously.
+
+🧪 A/B Experimentation Engine: Granular tracking matrices to manage split-test deployments across Meta, Google, and TikTok ad channels.
+
+📊 Real-Time Analytics Dashboard: Instant visibility grids tracking return on ad spend (ROAS) velocity alongside a live multi-agent decision feed.
+
+⚙️ Persistent Workspaces: Multi-tenant profile layers mapping secure data attributes (timezones, currency units, user profiles) cleanly to a persistent database layer.
+
+2. Advanced Additions & Enhancements (Beyond Base Requirements)
+📦 Cloud-Native Kubernetes Topology: Re-architected a localized codebase into a production-ready microservices architecture running across high-availability, multi-replica pod states with native CoreDNS service meshes.
+
+🔒 DevSecOps Automated Pipeline: Shifted security checking into the automated delivery loop, enforcing package dependency validation audits (pnpm audit) and static application security testing (SAST) blocks before building final images.
+
+🛠️ Infrastructure as Code (IaC): Wrapped the entire cluster environment (Deployments, ClusterIP Networking, autoscalers, and storage states) into fully versioned, reproducible declarative scripts using Terraform.
+
+📁 Hardened Multi-Stage Containerization: Engineered a streamlined Node 22-Alpine compilation pipeline that safely isolates native system build toolchains (g++, make) to process low-level binary drivers like better-sqlite3, reducing the final image's attack surface.
+
+💾 Prisma 7 Data Decoupling: Fully updated data architectures to adhere to rigid Prisma 7 parsing criteria—stripping static string variables away from global models and handling connections cleanly via an isolated /app/data/production.db persistent volume.
+
+3. Your Runtime Inputs & Environments
+Active LLM Engine: Ollama running the Qwen model framework (ollama pull qwen).
+
+Active Working Directory: root@localhost:/home/devops/SkillPulse-AiAdCampaignOptimizer
+
+Live Cluster Endpoint Context: http://172.105.36.248:3000/campaigns
+
+Internal Network Routing Meshes: Backend routed internally via CoreDNS lookup to http://api:8080, tracking database parameters securely inside standalone config structures (prisma.config.ts).
 
 ---
 
