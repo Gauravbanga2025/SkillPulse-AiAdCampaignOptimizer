@@ -42,7 +42,7 @@ jobs:
           fi
 
       - name: Enforce SonarQube Quality Gate
-        uses: sonarsource/sonarqube-quality-gate-action@master
+        uses: sonarsource/sonarqube-quality-gate-action@v1
         timeout-minutes: 10
         with:
           scanMetadataReportFile: .scannerwork/report-task.txt
