@@ -8,13 +8,14 @@ jobs:
   security-scan:
     name: 🛡️ Code Quality & Security Scan
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Run SonarQube Scan Pass
+      - name: Run SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_GIT_TOKEN }}
@@ -25,14 +26,24 @@ jobs:
             -Dsonar.sources=api/src,web/src
             -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/dist/**
 
-      # ⏳ FIX 1: Give your SonarQube container time to parse the metrics task report
-      - name: Wait for SonarQube Background Processing
-        run: sleep 10
+      # Debug Sonar output
+      - name: Debug Sonar Report
+        run: |
+          echo "SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }}"
+          echo "================================="
+          echo "Contents of report-task.txt"
+          echo "================================="
+          
+          if [ -f .scannerwork/report-task.txt ]; then
+            cat .scannerwork/report-task.txt
+          else
+            echo "ERROR: report-task.txt not found!"
+            exit 1
+          fi
 
-      # ⚡ FIX 2: Check Quality Gate with explicit path tracking arguments
       - name: Enforce SonarQube Quality Gate
-        uses: sonarsource/sonarqube-quality-gate-action@v1
-        timeout-minutes: 5
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 10
         with:
           scanMetadataReportFile: .scannerwork/report-task.txt
         env:
@@ -41,8 +52,9 @@ jobs:
 
   build-and-push:
     name: 📦 Secure Docker Containerization
-    needs: security-scan # Prevents building if SonarQube flags security issues!
+    needs: security-scan
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -69,10 +81,11 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/adoptimizer-frontend:latest
 
-  deploy:  
+  deploy:
     name: 🚀 Automated Secure Production Deploy
     needs: build-and-push
     runs-on: ubuntu-latest
+
     steps:
       - name: Execute Remote SSH Deployment Rules
         uses: appleboy/ssh-action@v1.0.3
@@ -83,21 +96,21 @@ jobs:
           script: |
             cd /home/devops/SkillPulse-AiAdCampaignOptimizer
 
-            # 1. Pull down the latest GitHub modifications
+            # Pull latest source code
             git pull origin main
 
-            # 2. Re-initialize the plugin cache binaries
+            # Initialize Terraform
             terraform init
 
-            # 3. Dynamic Import Sequence (Forces Terraform to map existing resources into the pipeline state)
+            # Import existing resources if not already imported
             terraform import kubernetes_deployment.backend default/adoptimizer-backend || true
             terraform import kubernetes_deployment.frontend default/adoptimizer-frontend || true
             terraform import kubernetes_deployment.ai_engine default/adoptimizer-ai || true
             terraform import kubernetes_horizontal_pod_autoscaler.backend_autoscaler default/backend-autoscaler || true
 
-            # 4. Apply the synchronized infrastructure mappings seamlessly
+            # Apply infrastructure updates
             terraform apply -auto-approve
 
-            # 5. Execute zero-downtime rolling cluster hot-swaps
+            # Rolling restart
             kubectl rollout restart deployment/adoptimizer-frontend
             kubectl rollout restart deployment/adoptimizer-backend
