@@ -25,12 +25,20 @@ jobs:
             -Dsonar.sources=api/src,web/src
             -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/dist/**
 
+      # ⏳ FIX 1: Give your SonarQube container time to parse the metrics task report
+      - name: Wait for SonarQube Background Processing
+        run: sleep 10
+
+      # ⚡ FIX 2: Check Quality Gate with explicit path tracking arguments
       - name: Enforce SonarQube Quality Gate
         uses: sonarsource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
+        with:
+          scanMetadataReportFile: .scannerwork/report-task.txt
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
   build-and-push:
     name: 📦 Secure Docker Containerization
     needs: security-scan # Prevents building if SonarQube flags security issues!
@@ -61,7 +69,7 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/adoptimizer-frontend:latest
 
-  deploy:  # 🔑 Added exactly 2 spaces here to align with build-and-push!
+  deploy:  
     name: 🚀 Automated Secure Production Deploy
     needs: build-and-push
     runs-on: ubuntu-latest
