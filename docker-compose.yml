@@ -1,5 +1,4 @@
 services:
-  # 1. Local Isolated AI Orchestration Engine
   ollama:
     image: ollama/ollama:latest
     container_name: adoptimizer-ai
@@ -9,27 +8,27 @@ services:
       - "11434:11434"
     restart: unless-stopped
 
-  # 2. Express Backend API
   api:
-    image: gauravbanga/adoptimizer-backend:latest # 🔑 Updated: Swapped build block for Docker Hub registry path
+    image: gauravbanga/adoptimizer-backend:latest
     container_name: adoptimizer-backend
     ports:
       - "8080:8080"
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/production.db
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_URL=http://ollama:11434
       - HOST=0.0.0.0
       - PORT=8080
+      - GEMINI_API_KEY=AIzaSyDteYt195UOT4AMtuoBDLojfzy7R3VjyPc
+    volumes:
+      - db_data:/app/data
     depends_on:
       - ollama
     restart: unless-stopped
-    volumes:
-      - ./api/dev.db:/app/dev.db # 💾 Kept: Persistent SQLite link to your host machine
 
-  # 3. Next.js Frontend User Interface
   web:
-    image: gauravbanga/adoptimizer-frontend:latest # 🔑 Updated: Swapped build block for Docker Hub registry path
+    image: gauravbanga/adoptimizer-frontend:latest
     container_name: adoptimizer-frontend
     ports:
       - "3000:3000"
@@ -45,3 +44,4 @@ services:
 
 volumes:
   ollama_data:
+  db_data:
