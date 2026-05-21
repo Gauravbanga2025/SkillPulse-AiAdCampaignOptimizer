@@ -2,7 +2,7 @@ name: DevSecOps CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   security-scan:
@@ -26,29 +26,67 @@ jobs:
             -Dsonar.sources=api/src,web/src
             -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/dist/**
 
-      # Debug Sonar output
       - name: Debug Sonar Report
         run: |
-          echo "SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }}"
-          echo "================================="
+          echo "============================"
           echo "Contents of report-task.txt"
-          echo "================================="
-          
-          if [ -f .scannerwork/report-task.txt ]; then
-            cat .scannerwork/report-task.txt
-          else
-            echo "ERROR: report-task.txt not found!"
+          echo "============================"
+          cat .scannerwork/report-task.txt
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Wait for SonarQube Background Task
+        run: |
+          TASK_URL=$(grep ceTaskUrl .scannerwork/report-task.txt | cut -d= -f2-)
+
+          echo "Task URL:"
+          echo "$TASK_URL"
+
+          for i in {1..30}
+          do
+            STATUS=$(curl -s -u "${{ secrets.SONAR_GIT_TOKEN }}:" "$TASK_URL" | jq -r '.task.status')
+
+            echo "Current Status: $STATUS"
+
+            if [ "$STATUS" = "SUCCESS" ]; then
+              echo "SonarQube analysis completed"
+              exit 0
+            fi
+
+            if [ "$STATUS" = "FAILED" ]; then
+              echo "SonarQube analysis failed"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "Timed out waiting for SonarQube analysis"
+          exit 1
+
+      - name: Check SonarQube Quality Gate
+        run: |
+          PROJECT_KEY="SkillPulse-AiAdCampaignOptimizer"
+
+          RESPONSE=$(curl -s -u "${{ secrets.SONAR_GIT_TOKEN }}:" \
+          "${{ secrets.SONAR_HOST_URL }}/api/qualitygates/project_status?projectKey=$PROJECT_KEY")
+
+          echo "Quality Gate Response:"
+          echo "$RESPONSE"
+
+          GATE_STATUS=$(echo "$RESPONSE" | jq -r '.projectStatus.status')
+
+          echo "Quality Gate Status: $GATE_STATUS"
+
+          if [ "$GATE_STATUS" != "OK" ]; then
+            echo "Quality Gate Failed"
             exit 1
           fi
 
-      - name: Enforce SonarQube Quality Gate
-        uses: sonarsource/sonarqube-quality-gate-action@v1
-        timeout-minutes: 10
-        with:
-          scanMetadataReportFile: .scannerwork/report-task.txt
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_GIT_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          echo "Quality Gate Passed"
 
   build-and-push:
     name: 📦 Secure Docker Containerization
@@ -96,21 +134,16 @@ jobs:
           script: |
             cd /home/devops/SkillPulse-AiAdCampaignOptimizer
 
-            # Pull latest source code
             git pull origin main
 
-            # Initialize Terraform
             terraform init
 
-            # Import existing resources if not already imported
             terraform import kubernetes_deployment.backend default/adoptimizer-backend || true
             terraform import kubernetes_deployment.frontend default/adoptimizer-frontend || true
             terraform import kubernetes_deployment.ai_engine default/adoptimizer-ai || true
             terraform import kubernetes_horizontal_pod_autoscaler.backend_autoscaler default/backend-autoscaler || true
 
-            # Apply infrastructure updates
             terraform apply -auto-approve
 
-            # Rolling restart
             kubectl rollout restart deployment/adoptimizer-frontend
             kubectl rollout restart deployment/adoptimizer-backend
