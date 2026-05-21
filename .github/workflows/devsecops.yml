@@ -30,7 +30,7 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
   build-and-push:
     name: 📦 Secure Docker Containerization
     needs: security-scan # Prevents building if SonarQube flags security issues!
