@@ -26,11 +26,11 @@ jobs:
             -Dsonar.sources=api/src,web/src
             -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/dist/**
 
-      - name: Debug Sonar Report
+      - name: Show Sonar Report
         run: |
-          echo "============================"
-          echo "Contents of report-task.txt"
-          echo "============================"
+          echo "==============================="
+          echo "Sonar report-task.txt"
+          echo "==============================="
           cat .scannerwork/report-task.txt
 
       - name: Install jq
@@ -47,25 +47,35 @@ jobs:
 
           for i in {1..30}
           do
-            STATUS=$(curl -s -u "${{ secrets.SONAR_GIT_TOKEN }}:" "$TASK_URL" | jq -r '.task.status')
+            RESPONSE=$(curl -s -u "${{ secrets.SONAR_GIT_TOKEN }}:" "$TASK_URL")
+
+            STATUS=$(echo "$RESPONSE" | jq -r '.task.status')
 
             echo "Current Status: $STATUS"
 
             if [ "$STATUS" = "SUCCESS" ]; then
               echo "SonarQube analysis completed"
-              exit 0
+              break
             fi
 
             if [ "$STATUS" = "FAILED" ]; then
-              echo "SonarQube analysis failed"
+              echo "=================================="
+              echo "SonarQube Failure Details"
+              echo "=================================="
+
+              echo "$RESPONSE"
+
+              ANALYSIS_ID=$(echo "$RESPONSE" | jq -r '.task.analysisId')
+              ERROR_MSG=$(echo "$RESPONSE" | jq -r '.task.errorMessage')
+
+              echo "Analysis ID: $ANALYSIS_ID"
+              echo "Error Message: $ERROR_MSG"
+
               exit 1
             fi
 
             sleep 10
           done
-
-          echo "Timed out waiting for SonarQube analysis"
-          exit 1
 
       - name: Check SonarQube Quality Gate
         run: |
