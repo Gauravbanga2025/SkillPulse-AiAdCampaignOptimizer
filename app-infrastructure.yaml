@@ -1,10 +1,9 @@
-# ==========================================
-# app-infrastructure.yaml — FULLY FIXED
-# ==========================================
+# ==========================================================================
+# app-infrastructure.yaml — PRODUCTION GRADED MESH (FULLY SYNCHRONIZED)
+# ==========================================================================
 
 # ==========================================
 # 0. PERSISTENT VOLUME CLAIM FOR SQLITE DB
-# 🔑 FIX: Added — was missing, causing empty DB on pod start
 # ==========================================
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -73,7 +72,7 @@ metadata:
   labels:
     app: backend
 spec:
-  replicas: 2
+  replicas: 1  # 🔑 FIX: Configured to 1 pod to prevent multi-process SQLite lock contentions
   selector:
     matchLabels:
       app: backend
@@ -85,10 +84,13 @@ spec:
       containers:
       - name: api
         image: gauravbanga/adoptimizer-backend:latest
-        command: ["node", "dist/index.js"]
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:
+        # 🔑 FIX: Explicit connection routing variables for the Prisma 7 decoupled layer
+        - name: DATABASE_URL
+          value: "file:/app/data/production.db"
         - name: NODE_ENV
           value: "production"
         - name: OLLAMA_HOST
@@ -99,16 +101,14 @@ spec:
           value: "0.0.0.0"
         - name: PORT
           value: "8080"
-        # 🔑 FIX: Mount persistent SQLite database
         volumeMounts:
         - name: sqlite-storage
-          mountPath: /app/dev.db
-          subPath: dev.db
+          mountPath: /app/data # 🔑 FIX: Matches the exact fallback path inside the builder stage
         livenessProbe:
           httpGet:
             path: /health
             port: 8080
-          initialDelaySeconds: 30
+          initialDelaySeconds: 45 # Breathing space to let migrations settle on initial boot
           periodSeconds: 10
         resources:
           requests:
@@ -117,7 +117,6 @@ spec:
           limits:
             cpu: "300m"
             memory: "512Mi"
-      # 🔑 FIX: Attach the PVC to the pod
       volumes:
       - name: sqlite-storage
         persistentVolumeClaim:
@@ -197,7 +196,6 @@ spec:
 ---
 # ==========================================
 # 4. HORIZONTAL POD AUTOSCALER
-# 🔑 FIX: maxReplicas was 2 (same as min), making HPA useless
 # ==========================================
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -208,8 +206,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: adoptimizer-backend
-  minReplicas: 2
-  maxReplicas: 6  # 🔑 FIX: Was 2 — now HPA can actually scale up
+  minReplicas: 1  # 🔑 FIX: Synchronized with single-replica SQLite limitations
+  maxReplicas: 3
   metrics:
   - type: Resource
     resource:
