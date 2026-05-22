@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
-import { OllamaAgent } from '../services/OllamaAgent';
+import { CreativeAgent } from '../services/CreativeAgent';
 import { PrismaClient } from '@prisma/client';
 import Database from 'better-sqlite3';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
 const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL || 'file:/app/data/production.db' });
 const prisma = new PrismaClient({ adapter });
-const ollamaAgent = new OllamaAgent();
+const creativeAgent = new CreativeAgent();
 
 // In-memory job status store for polling
 const jobStore: Record<string, { status: string; results: any | null }> = {};
@@ -24,7 +24,7 @@ export async function orchestrateCampaign(req: Request, res: Response) {
   (async () => {
     try {
       console.log(`[Orchestrator] Job ${jobId}: Generating creatives via Ollama...`);
-      const creatives = await ollamaAgent.generateAdConcepts(
+      const creatives = await creativeAgent.generateAdConcepts(
         context || 'A generic SaaS advertising optimization tool',
         3
       );
