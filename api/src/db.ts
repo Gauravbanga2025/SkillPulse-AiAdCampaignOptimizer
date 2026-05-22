@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
-import path from 'path'
+import path from 'node:path';
 
 // Determine database path from environment or default
 const dbUrl = process.env.DATABASE_URL || `file:${path.join(process.cwd(), 'production.db')}`
