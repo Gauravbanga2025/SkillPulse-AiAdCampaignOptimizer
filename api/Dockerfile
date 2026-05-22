@@ -28,7 +28,6 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.js ./prisma.config.js
 
-RUN npm rebuild better-sqlite3 --prefix /app
 
 RUN mkdir -p /app/data
 
