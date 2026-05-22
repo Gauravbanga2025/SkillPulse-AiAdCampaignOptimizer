@@ -1,8 +1,8 @@
 "use client";
 
-#import { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-#import Link from "next/link";
+
 import { ArrowRight, Bot, Target, Sparkles, CheckCircle2, Loader2, Link2, Users, Play } from "lucide-react";
 
 export default function NewCampaignWizard() {
