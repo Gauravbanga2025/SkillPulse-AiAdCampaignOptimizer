@@ -1,5 +1,5 @@
 # ==========================================================================
-# app-infrastructure.yaml — PRODUCTION GRADED MESH (FULLY SYNCHRONIZED)
+# app-infrastructure.yaml — PRODUCTION GRADED MESH (SECURE VAULT STORAGE)
 # ==========================================================================
 
 # ==========================================
@@ -18,52 +18,7 @@ spec:
 
 ---
 # ==========================================
-# 1. OLLAMA AI ENGINE (DEPLOYMENT & SERVICE)
-# ==========================================
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: adoptimizer-ai
-  labels:
-    app: ai
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: ai
-  template:
-    metadata:
-      labels:
-        app: ai
-    spec:
-      containers:
-      - name: ollama
-        image: ollama/ollama:latest
-        ports:
-        - containerPort: 11434
-        resources:
-          requests:
-            cpu: "100m"
-            memory: "256Mi"
-          limits:
-            cpu: "500m"
-            memory: "1Gi"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ollama
-spec:
-  selector:
-    app: ai
-  ports:
-    - protocol: TCP
-      port: 11434
-      targetPort: 11434
-
----
-# ==========================================
-# 2. EXPRESS BACKEND API (DEPLOYMENT & SERVICE)
+# 1. EXPRESS BACKEND API (DEPLOYMENT & SERVICE)
 # ==========================================
 apiVersion: apps/v1
 kind: Deployment
@@ -72,7 +27,7 @@ metadata:
   labels:
     app: backend
 spec:
-  replicas: 1  # 🔑 FIX: Configured to 1 pod to prevent multi-process SQLite lock contentions
+  replicas: 1  # 🔑 FIX: Kept at 1 pod to prevent multi-process SQLite lock contentions
   selector:
     matchLabels:
       app: backend
@@ -88,27 +43,28 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        # 🔑 FIX: Explicit connection routing variables for the Prisma 7 decoupled layer
+        # 🔑 FIX: Securely mount the Google API token from your decoupled infrastructure secrets map
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: adoptimizer-secrets
+              key: GEMINI_API_KEY
         - name: DATABASE_URL
           value: "file:/app/data/production.db"
         - name: NODE_ENV
           value: "production"
-        - name: OLLAMA_HOST
-          value: "http://ollama:11434"
-        - name: OLLAMA_URL
-          value: "http://ollama:11434"
         - name: HOST
           value: "0.0.0.0"
         - name: PORT
           value: "8080"
         volumeMounts:
         - name: sqlite-storage
-          mountPath: /app/data # 🔑 FIX: Matches the exact fallback path inside the builder stage
+          mountPath: /app/data
         livenessProbe:
           httpGet:
             path: /health
             port: 8080
-          initialDelaySeconds: 45 # Breathing space to let migrations settle on initial boot
+          initialDelaySeconds: 45
           periodSeconds: 10
         resources:
           requests:
@@ -137,7 +93,7 @@ spec:
 
 ---
 # ==========================================
-# 3. NEXT.JS FRONTEND (DEPLOYMENT & SERVICE)
+# 2. NEXT.JS FRONTEND (DEPLOYMENT & SERVICE)
 # ==========================================
 apiVersion: apps/v1
 kind: Deployment
@@ -195,7 +151,7 @@ spec:
 
 ---
 # ==========================================
-# 4. HORIZONTAL POD AUTOSCALER
+# 3. HORIZONTAL POD AUTOSCALER
 # ==========================================
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -206,7 +162,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: adoptimizer-backend
-  minReplicas: 1  # 🔑 FIX: Synchronized with single-replica SQLite limitations
+  minReplicas: 1  
   maxReplicas: 3
   metrics:
   - type: Resource
