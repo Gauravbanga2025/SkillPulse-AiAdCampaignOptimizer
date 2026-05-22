@@ -77,12 +77,25 @@ export async function orchestrateCampaign(req: Request, res: Response) {
         console.log(`[Orchestrator] Saved new campaign goal: ${newCampaign.name}`);
       }
 
-      // Return results for UI display (use raw creative objects for rich display)
+     // ====================================================================
+      // 🔑 FIX: Align Gemini properties cleanly to match UI components
+      // ====================================================================
       jobStore[jobId].status = 'completed';
       jobStore[jobId].results = {
         creatives: creatives.map((c, i) => ({
-          ...c,
           id: savedCreatives[i].id,
+          headline: c.headline,
+          
+          // Map Gemini's bodyCopy into the description field your UI expects
+          description: c.bodyCopy, 
+          
+          // Map Gemini's imagePrompt into the prompt string your UI parses
+          prompt: c.imagePrompt,
+          
+          // Keep base variables for fallback references
+          bodyCopy: c.bodyCopy,
+          imagePrompt: c.imagePrompt,
+          predictedCTR: c.predictedCTR,
         })),
         audiences: [
           { name: 'High-LTV Cluster (AI Discovered)', size: '420k' },
