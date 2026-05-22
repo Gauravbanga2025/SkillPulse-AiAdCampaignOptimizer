@@ -8,7 +8,6 @@ const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL || 'file
 const prisma = new PrismaClient({ adapter });
 const creativeAgent = new CreativeAgent();
 
-// In-memory job status store for polling
 const jobStore: Record<string, { status: string; results: any | null }> = {};
 
 export async function orchestrateCampaign(req: Request, res: Response) {
@@ -16,20 +15,20 @@ export async function orchestrateCampaign(req: Request, res: Response) {
   const jobId = `job_${Date.now()}`;
 
   jobStore[jobId] = { status: 'learning', results: null };
-
-  // Return immediately with the job ID for polling
   res.status(202).json({ success: true, jobId, message: 'Agents dispatched.' });
 
-  // Background orchestration
   (async () => {
     try {
-      console.log(`[Orchestrator] Job ${jobId}: Generating creatives via Ollama...`);
-      const creatives = await creativeAgent.generateAdConcepts(
-        context || 'A generic SaaS advertising optimization tool',
-        3
-      );
+      console.log(`[Orchestrator] Job ${jobId}: Generating creatives via Gemini...`);
 
-      // Get or use default workspace ID
+      // 🔑 FIX: Pass full structured context — not just the plain string
+      const creatives = await creativeAgent.generateAdConcepts({
+        businessContext: context || 'A generic SaaS advertising optimization tool',
+        landingPageUrl: url,
+        targetRoas: parseFloat(targetRoas || '3.0'),
+        dailyBudget: parseFloat(dailyBudget || '1000'),
+      }, 3);
+
       let wsId = workspaceId;
       if (!wsId) {
         const workspace = await prisma.workspace.findFirst();
@@ -40,7 +39,6 @@ export async function orchestrateCampaign(req: Request, res: Response) {
         throw new Error('No workspace found in database. Please run the seed first.');
       }
 
-      // Persist generated creatives to the database
       const savedCreatives = await Promise.all(
         creatives.map(c =>
           prisma.creativeAsset.create({
@@ -60,7 +58,6 @@ export async function orchestrateCampaign(req: Request, res: Response) {
 
       console.log(`[Orchestrator] Job ${jobId}: Saved ${savedCreatives.length} creatives to DB.`);
 
-      // Also persist a new campaign goal from the input
       let newCampaign: any = null;
       if (url && wsId) {
         const name = `AI Campaign - ${new URL(url.startsWith('http') ? url : `https://${url}`).hostname}`;
@@ -77,22 +74,13 @@ export async function orchestrateCampaign(req: Request, res: Response) {
         console.log(`[Orchestrator] Saved new campaign goal: ${newCampaign.name}`);
       }
 
-     // ====================================================================
-      // 🔑 FIX: Align Gemini properties cleanly to match UI components
-      // ====================================================================
       jobStore[jobId].status = 'completed';
       jobStore[jobId].results = {
         creatives: creatives.map((c, i) => ({
           id: savedCreatives[i].id,
           headline: c.headline,
-          
-          // Map Gemini's bodyCopy into the description field your UI expects
-          description: c.bodyCopy, 
-          
-          // Map Gemini's imagePrompt into the prompt string your UI parses
+          description: c.bodyCopy,
           prompt: c.imagePrompt,
-          
-          // Keep base variables for fallback references
           bodyCopy: c.bodyCopy,
           imagePrompt: c.imagePrompt,
           predictedCTR: c.predictedCTR,
