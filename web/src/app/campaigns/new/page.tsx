@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Bot, Target, Sparkles, CheckCircle2, Loader2, Link2, Users, Play } from "lucide-react";
 
@@ -14,6 +15,12 @@ export default function NewCampaignWizard() {
   const [budget, setBudget] = useState("");
   const [context, setContext] = useState("");
   const [results, setResults] = useState<any>(null);
+
+  const router = useRouter();
+
+  const deployExperiments = async () => {
+    router.push("/experiments");
+  };
 
   const startGeneration = async () => {
     setIsGenerating(true);
@@ -218,13 +225,13 @@ export default function NewCampaignWizard() {
               >
                 Regenerate
               </button>
-              <Link
-                href="/"
+              <button
+                onClick={deployExperiments}
                 className="flex items-center gap-2 px-8 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition font-semibold text-sm shadow-lg shadow-emerald-500/20"
               >
                 <Play className="w-4 h-4" />
                 Deploy Experiments Now
-              </Link>
+              </button>
             </div>
           </div>
         )}
